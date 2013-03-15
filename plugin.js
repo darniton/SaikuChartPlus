@@ -61,6 +61,13 @@ var ChartPlus = Backbone.View.extend({
 							"</ul>"+
 						"</div><!-- /btn-group -->"+
 						"<div class='btn-group'>"+
+							"<button data-toggle='dropdown' class='btn dropdown-toggle'>Gauge <span class='caret'></span></button>"+
+							"<ul class='dropdown-menu'>"+
+								"<li><a href='#gaugePlus'>Gauge</a></li>"+
+								"<li><a href='#gaugeDualPlus'>Gauge Dual</a></li>"+									
+							"</ul>"+
+						"</div><!-- /btn-group -->"+
+						"<div class='btn-group'>"+
 							"<button data-toggle='dropdown' class='btn dropdown-toggle'>Geo Map <span class='caret'></span></button>"+
 							"<ul class='dropdown-menu'>"+
 								"<li><a href='#mapPlus'>world map</a></li>"+
@@ -394,7 +401,16 @@ var ChartPlus = Backbone.View.extend({
         this.options.type = "line";
         this.render();
     },
-    
+    gaugePlus: function() {
+        this.options.stacked = false;
+        this.options.type = "gauge";
+        this.render();
+    },
+    gaugeDualPlus: function() {
+        this.options.stacked = false;
+        this.options.type = "gaugeDual";
+        this.render();
+    },
     piePlus: function() {
         this.options.stacked = false;
         this.options.type = "pie";
@@ -436,7 +452,24 @@ var ChartPlus = Backbone.View.extend({
         }, this.options);
        
         //start serialization of data
-        if(options.type!='pie' && options.type!='map' && options.type!='US'){
+        if(options.type=='pie'){
+        	var metadata=new Array();
+	        //numero de colunas
+	        var colNumber=this.data.metadata.length;
+	        var seriesData=new Array();	        
+			var series=new Array();
+	        if (this.data.resultset.length > 0 ) {
+	        	$.each(this.data.resultset, function(key, value) {
+	        		series[key]=[value[0], value[1]];
+				});
+	        }	
+	        
+	        seriesData=[{
+	                type: 'pie',
+	                name: this.data.metadata[0].colName,
+	                data: series                
+            	}];	        
+        }else if(options.type!='map' && options.type!='US'){
         	var metadata=new Array();
 	        //numero de colunas
 	        var colNumberY=this.data.metadata.length-1;//-1 devido a coluna 0 armazena o valor de X	
@@ -467,24 +500,7 @@ var ChartPlus = Backbone.View.extend({
 	                data: y[i]
 	            	};		
 	        }
-        }else if(options.type=='pie'){
-        	var metadata=new Array();
-	        //numero de colunas
-	        var colNumber=this.data.metadata.length;
-	        var seriesData=new Array();	        
-			var series=new Array();
-	        if (this.data.resultset.length > 0 ) {
-	        	$.each(this.data.resultset, function(key, value) {
-	        		series[key]=[value[0], value[1]];
-				});
-	        }	
-	        
-	        seriesData=[{
-	                type: 'pie',
-	                name: this.data.metadata[0].colName,
-	                data: series                
-            	}];	        
-        }     
+        } 
         //end serialization of data
 
         //start draw graphics
@@ -767,6 +783,133 @@ var ChartPlus = Backbone.View.extend({
 	            series: seriesData
 	        });	
 		}
+        else if(options.type=='gauge'){
+        	//crate the elements for draw
+        	var html='';
+        	for(var l=0; l < x.length; l++){
+        		html+='<div id="'+this.id+'_'+l+'" class="container" >';
+        		for(var c=0; c < colNumberY; c++){
+        			var idChart=this.id+'_'+l+'_'+c;
+		        	html+=contentTab(idChart);//'<div id="'+this.id+'_'+l+'_'+c+'" style="float:left" class="thumbnail"></div>';	
+	        	}
+	        	html+='</div>';	
+        	}  
+        	
+        	$('#'+this.id).html(html);
+        	//$('#'+this.id).html(contentTab());
+			$('.tabs').tabs()
+			
+        	//parser data and call render charts
+        	var  width=$(this.workspace.el).find('.workspace_results').width()-40;
+        	width= parseInt((width/colNumberY)-10);
+        	var  height=$(this.workspace.el).find('.workspace_results').height()-40;
+        	height= parseInt((height/x.length));
+        	
+        	//alert('width:'+width+' height:'+height+' - '+x.length+' - '+colNumberY);
+        	for(var l=0; l < x.length; l++){
+        		for(var c=0; c < colNumberY; c++){
+		        	this.options.height=height;
+	        		this.options.width=width;
+	        		this.options.id=this.id+'_'+l+'_'+c;
+	        		this.options.x=x[l];
+	        		
+	        		var chart=gauge(this.options);
+					new Highcharts.Chart(chart);
+	        	}	
+        	}
+        	
+        	
+
+	        	
+		}
+		else if(options.type=='gaugeDual'){
+			var chart = new Highcharts.Chart({
+	
+	    chart: {
+	        renderTo: this.id,
+	        height: $(this.workspace.el).find('.workspace_results').height() - 40,
+			width: $(this.workspace.el).find('.workspace_results').width() - 40,	
+	        type: 'gauge',
+	        alignTicks: false,
+	        plotBackgroundColor: null,
+	        plotBackgroundImage: null,
+	        plotBorderWidth: 0,
+	        plotShadow: false
+	    },
+	
+	    title: {
+	        text: 'Speedometer with dual axes'
+	    },
+	    
+	    pane: {
+	        startAngle: -150,
+	        endAngle: 150
+	    },	        
+	
+	    yAxis: [{
+	        min: 0,
+	        max: 200,
+	        lineColor: '#339',
+	        tickColor: '#339',
+	        minorTickColor: '#339',
+	        offset: -25,
+	        lineWidth: 2,
+	        labels: {
+	            distance: -20,
+	            rotation: 'auto'
+	        },
+	        tickLength: 5,
+	        minorTickLength: 5,
+	        endOnTick: false
+	    }, {
+	        min: 0,
+	        max: 124,
+	        tickPosition: 'outside',
+	        lineColor: '#933',
+	        lineWidth: 2,
+	        minorTickPosition: 'outside',
+	        tickColor: '#933',
+	        minorTickColor: '#933',
+	        tickLength: 5,
+	        minorTickLength: 5,
+	        labels: {
+	            distance: 12,
+	            rotation: 'auto'
+	        },
+	        offset: -20,
+	        endOnTick: false
+	    }],
+	
+	    series: [{
+	        name: 'Speed',
+	        data: [80],
+	        dataLabels: {
+	            formatter: function () {
+	                var kmh = this.y,
+	                    mph = Math.round(kmh * 0.621);
+	                return '<span style="color:#339">'+ kmh + ' km/h</span><br/>' +
+	                    '<span style="color:#933">' + mph + ' mph</span>';
+	            },
+	            backgroundColor: {
+	                linearGradient: {
+	                    x1: 0,
+	                    y1: 0,
+	                    x2: 0,
+	                    y2: 1
+	                },
+	                stops: [
+	                    [0, '#DDD'],
+	                    [1, '#FFF']
+	                ]
+	            }
+	        },
+	        tooltip: {
+	            valueSuffix: ' km/h'
+	        }
+	    }]
+	
+	});
+		}
 		else if(options.type=='pie')
 		{
 			chart = new Highcharts.Chart({
@@ -823,8 +966,12 @@ var ChartPlus = Backbone.View.extend({
 	        		series[key+1]=value; // +1 devido ao nome das colunas	        		
 				});
 	        }	
-        	
+
+        	//console.log(series);	
         	var data = google.visualization.arrayToDataTable(series);
+        		
+        	var formatter = new google.visualization.NumberFormat({pattern:'#,###'});
+		  	formatter.format(data, 2);
         		
 	        var options = {};
 
@@ -959,9 +1106,15 @@ function loadJS(file){
 		loadCSS('js/saiku/plugins/SaikuChartPlus/bootstrap/css/bootstrap-responsive.css');
 
 		loadJS('js/saiku/plugins/SaikuChartPlus/bootstrap/js/bootstrap.min.js');
+		loadJS('js/saiku/plugins/SaikuChartPlus/bootstrap/bootstrap-tabs.js');
 		loadJS('js/saiku/plugins/SaikuChartPlus/highcharts/highcharts.js');
+		loadJS('js/saiku/plugins/SaikuChartPlus/highcharts/highcharts-more.js');
 		loadJS('js/saiku/plugins/SaikuChartPlus/highcharts/exporting.js');
         loadJS('js/saiku/plugins/SaikuChartPlus/google/ga.js');
+        loadJS('js/saiku/plugins/SaikuChartPlus/graphics.js');
+
+        
+        loadJS('js/saiku/plugins/SaikuChartPlus/templates/content_tab.js');
 
         function new_workspace(args) {
         	// Add stats element
